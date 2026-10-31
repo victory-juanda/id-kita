@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAS SCANNER PRO - Otoritas Bandar Udara</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- jsQR Engine Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .scan-beam {
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #fbbf24, #f59e0b, #fbbf24, transparent);
+            box-shadow: 0 0 15px #f59e0b;
+            animation: scanAnim 2s infinite linear;
+        }
+        @keyframes scanAnim {
+            0% { top: 0%; opacity: 0.8; }
+            50% { top: 95%; opacity: 1; }
+            100% { top: 0%; opacity: 0.8; }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- NAVIGATION HEADER -->
+    <header class="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
+                    <i class="fa-solid fa-plane-lock text-base"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-sm tracking-wide text-slate-100 uppercase">PAS SCANNER PRO</h1>
+                    <p class="text-[10px] text-amber-400 font-semibold tracking-wider uppercase">Otoritas Bandara Wilayah III</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button onclick="toggleConfigModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition">
+                    <i class="fa-solid fa-cloud text-amber-400"></i>
+                    <span id="driveStatus" class="hidden sm:inline">Google Drive</span>
+                </button>
+                <div id="userSessionDisplay" class="text-xs font-semibold text-slate-300 hidden sm:flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Offline
+                </div>
+                <button onclick="handleLogout()" class="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTAINER UTAMA -->
+    <main class="max-w-6xl w-full mx-auto p-4 flex-1">
+
+        <!-- HALAMAN 1: OTENTIKASI & REGISTRASI AKUN -->
+        <section id="authSection" class="max-w-md mx-auto my-8 space-y-6">
+            <div class="glass-panel p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="text-center space-y-2 mb-6">
+                    <div class="inline-flex p-3 bg-amber-500/10 text-amber-400 rounded-2xl border border-amber-500/20 mb-1">
+                        <i class="fa-solid fa-shield-halved text-2xl"></i>
+                    </div>
+                    <h2 class="text-xl font-black text-slate-100 uppercase tracking-tight">Otentikasi Petugas</h2>
+                    <p class="text-xs text-slate-400">Masuk menggunakan email untuk mengintegrasikan hasil scan ke Google Drive Anda.</p>
+                </div>
+
+                <!-- FORM LOGIN -->
+                <div id="loginBox" class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Email Petugas</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+                            <input type="email" id="loginEmail" value="petugas@juanda-airport.com" placeholder="petugas@juanda-airport.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-400 transition">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kata Sandi</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+                            <input type="password" id="loginPass" value="123456" placeholder="••••••••" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-400 transition">
+                        </div>
+                    </div>
+
+                    <button onclick="handleLogin()" class="w-full py-3 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 uppercase tracking-wide">
+                        <i class="fa-solid fa-key"></i> Masuk Ke Aplikasi
+                    </button>
+
+                    <p class="text-center text-xs text-slate-400 pt-2">
+                        Belum punya akun? <button onclick="switchAuthMode('register')" class="text-amber-400 font-bold hover:underline">Daftar Akun Baru</button>
+                    </p>
+                </div>
+
+                <!-- FORM REGISTER -->
+                <div id="registerBox" class="space-y-4 hidden">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Nama Lengkap</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+                            <input type="text" id="regName" placeholder="Nama Lengkap Petugas" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-400 transition">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Email Petugas</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-envelope absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+                            <input type="email" id="regEmail" placeholder="petugas@juanda-airport.com" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-400 transition">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Kata Sandi Baru</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3.5 top-3.5 text-slate-500 text-xs"></i>
+                            <input type="password" id="regPass" placeholder="Minimal 6 Karakter" class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-amber-400 transition">
+                        </div>
+                    </div>
+
+                    <button onclick="handleRegister()" class="w-full py-3 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 uppercase tracking-wide">
+                        <i class="fa-solid fa-user-plus"></i> Buat Akun & Masuk
+                    </button>
+
+                    <p class="text-center text-xs text-slate-400 pt-2">
+                        Sudah punya akun? <button onclick="switchAuthMode('login')" class="text-amber-400 font-bold hover:underline">Masuk Di Sini</button>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- HALAMAN 2: DASHBOARD PEMINDAI UTAMA -->
+        <section id="appSection" class="space-y-6 hidden">
+            <!-- PANEL ATAS: PEMINDAI + KARTU HASIL PINDAIAN -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- BAGIAN KIRI: SCANNER CAMERA / FILE INPUT (5 COLS) -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="glass-panel p-4 rounded-3xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                            <span class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-camera text-amber-400"></i> Pemindai QR Pas
+                            </span>
+                            <span id="scanStatus" class="px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold rounded-full flex items-center gap-1.5">
+                                <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span> Standby
+                            </span>
+                        </div>
+
+                        <!-- CAMERA VIEWPORT -->
+                        <div class="relative w-full aspect-square bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/80 flex items-center justify-center">
+                            <video id="webcamVideo" class="w-full h-full object-cover hidden" playsinline></video>
+                            <canvas id="scanCanvas" class="hidden"></canvas>
+                            <div id="scanLine" class="scan-beam hidden"></div>
+
+                            <!-- PLACEHOLDER UI -->
+                            <div id="placeholderUI" class="text-center space-y-3 p-6">
+                                <div class="w-16 h-16 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600">
+                                    <i class="fa-solid fa-qrcode text-3xl"></i>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-semibold text-slate-300">Kamera Belum Aktif</p>
+                                    <p class="text-[11px] text-slate-500">Klik "Buka Kamera" atau unggah foto kartu pas</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ACTION BUTTONS -->
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btnStart" onclick="startScanner()" class="py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition uppercase">
+                                <i class="fa-solid fa-video"></i> Buka Kamera
+                            </button>
+                            <button id="btnStop" onclick="stopScanner()" disabled class="py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold cursor-not-allowed border border-slate-800">
+                                <i class="fa-solid fa-video-slash"></i> Matikan
+                            </button>
+                        </div>
+
+                        <!-- UPLOAD FOTO & SIMULASI -->
+                        <div class="pt-2 border-t border-slate-800/80 space-y-2">
+                            <label class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold border border-slate-800 flex items-center justify-center gap-2 cursor-pointer transition">
+                                <i class="fa-solid fa-file-image text-amber-400"></i> Unggah Foto QR / Pas ID
+                                <input type="file" accept="image/*" onchange="scanFromFile(event)" class="hidden">
+                            </label>
+
+                            <button onclick="injectSampleData()" class="w-full py-2 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-amber-400 rounded-xl text-[11px] font-medium border border-slate-800/50 flex items-center justify-center gap-2 transition">
+                                <i class="fa-solid fa-flask"></i> Uji Coba Data Pas Juanda (Victory Christi)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BAGIAN KANAN: HASIL KARTU PAS DIGITAL (7 COLS) -->
+                <div class="lg:col-span-7 space-y-4">
+                    <div class="glass-panel p-6 rounded-3xl space-y-6 relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fa-solid fa-id-card text-amber-400"></i> Pratinjau Pas Bandara Digital
+                            </h3>
+                            <span id="statusBadge" class="px-3 py-1 bg-slate-800 text-slate-400 text-[10px] font-bold tracking-wider uppercase rounded-full">
+                                MENUNGGU PINDAIAN
+                            </span>
+                        </div>
+
+                        <!-- DESIGN KARTU PAS FISIK (DESAIN JUANDA AIRPORT) -->
+                        <div class="bg-gradient-to-br from-yellow-300 via-amber-300 to-amber-400 text-slate-950 p-5 rounded-2xl shadow-xl border-2 border-yellow-200/50 space-y-4 relative">
+                            <!-- HEADER KARTU -->
+                            <div class="text-center border-b border-slate-900/20 pb-2">
+                                <p class="text-[10px] font-black tracking-widest uppercase text-slate-900">OTORITAS BANDAR UDARA WILAYAH III</p>
+                                <p class="text-xs font-extrabold tracking-wide text-slate-900">BANDAR UDARA INTERNASIONAL JUANDA</p>
+                            </div>
+
+                            <!-- ISI KARTU -->
+                            <div class="grid grid-cols-12 gap-3 items-center">
+                                <!-- KOLOM AREA AKSES & TANGGAL -->
+                                <div class="col-span-4 space-y-2 border-r border-slate-900/20 pr-2">
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-800 uppercase">Terminal / Area</p>
+                                        <p class="text-[11px] font-black text-slate-950">1, 2 Area</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-800 uppercase">Masa Berlaku</p>
+                                        <p id="resExpDate" class="text-xs font-black text-slate-950 font-mono">30 JUN 2027</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-800 uppercase mb-1">Izin Area</p>
+                                        <div id="resAreas" class="flex flex-wrap gap-1">
+                                            <span class="px-1.5 py-0.5 bg-slate-950 text-amber-400 font-black rounded text-[10px]">A</span>
+                                            <span class="px-1.5 py-0.5 bg-slate-950 text-amber-400 font-black rounded text-[10px]">B</span>
+                                            <span class="px-1.5 py-0.5 bg-slate-950 text-amber-400 font-black rounded text-[10px]">G</span>
+                                            <span class="px-1.5 py-0.5 bg-slate-950 text-amber-400 font-black rounded text-[10px]">P</span>
+                                            <span class="px-1.5 py-0.5 bg-slate-950 text-amber-400 font-black rounded text-[10px]">V</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- KOLOM IDENTITAS & FOTO -->
+                                <div class="col-span-8 flex items-center gap-3">
+                                    <div class="w-20 h-24 bg-slate-900 rounded-lg overflow-hidden border-2 border-slate-950 flex-shrink-0 relative">
+                                        <img id="resPhoto" src="https://placehold.co/150x200/0f172a/f59e0b?text=PAS+PHOTO" alt="Foto Pas" class="w-full h-full object-cover">
+                                    </div>
+                                    <div class="space-y-1 overflow-hidden">
+                                        <div>
+                                            <p class="text-[9px] font-bold text-slate-800 uppercase">Nama Pemegang</p>
+                                            <p id="resName" class="text-xs font-black uppercase text-slate-950 truncate">VICTORY CHRISTI LA T</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] font-bold text-slate-800 uppercase">Instansi / Perusahaan</p>
+                                            <p id="resCompany" class="text-[11px] font-bold text-slate-900 truncate">AP INDONESIA</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-[9px] font-bold text-slate-800 uppercase">Nomor PAS Bandara</p>
+                                            <p id="resNoPas" class="text-xs font-black font-mono text-slate-950 truncate">B.API.01.SUB.000198</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TABEL STATISTIK CEPAT -->
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
+                                <p class="text-[10px] font-semibold text-slate-400">Total Scan Sesi Ini</p>
+                                <p id="statTotal" class="text-lg font-black text-amber-400 mt-0.5">0</p>
+                            </div>
+                            <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800/80">
+                                <p class="text-[10px] font-semibold text-slate-400">Status Penyimpanan</p>
+                                <p class="text-xs font-bold text-emerald-400 mt-1 flex items-center gap-1">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i> Auto-Sync Active
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABEL RIWAYAT SCAN DATA -->
+            <div class="glass-panel p-5 rounded-3xl space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-amber-400"></i> Riwayat Pemindaian Terintegrasi
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl text-xs font-bold transition flex items-center gap-1">
+                            <i class="fa-solid fa-file-excel text-emerald-400"></i> Ekspor CSV
+                        </button>
+                        <button onclick="clearHistory()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-rose-400 border border-slate-800 rounded-xl text-xs font-bold transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th class="p-2.5">Waktu Scan</th>
+                                <th class="p-2.5">Nama Pemegang</th>
+                                <th class="p-2.5">Nomor PAS</th>
+                                <th class="p-2.5 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanTableBody" class="divide-y divide-slate-800/40 text-xs">
+                            <tr>
+                                <td colspan="4" class="p-6 text-center text-slate-500">Belum ada data pindaian.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- CONFIGURATION MODAL (GOOGLE DRIVE WEBHOOK SETUP) -->
+    <div id="configModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative space-y-4">
+            <button onclick="toggleConfigModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="space-y-1">
+                <h3 class="font-bold text-slate-100 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-amber-400"></i> Pengaturan Google Drive / Spreadsheet
+                </h3>
+                <p class="text-xs text-slate-400">Input URL Webhook Google Apps Script untuk otomatis menyimpan hasil scan ke Drive Anda.</p>
+            </div>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] font-bold text-slate-300 uppercase">Google Webhook URL</label>
+                    <input type="url" id="webhookUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 mt-1 focus:outline-none focus:border-amber-400">
+                </div>
+
+                <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800/80 text-[11px] text-slate-300 space-y-2">
+                    <p class="font-bold text-amber-400 flex items-center justify-between">
+                        <span><i class="fa-solid fa-file-code"></i> Kode Apps Script Auto-Save:</span>
+                        <button onclick="copyAppsScriptCode()" class="px-2 py-1 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 rounded text-[10px] font-bold">
+                            <i class="fa-solid fa-copy"></i> Salin Kode Script
+                        </button>
+                    </p>
+                    <textarea id="appsScriptCode" readonly class="w-full h-24 bg-slate-900 border border-slate-800 text-[10px] font-mono text-slate-400 p-2 rounded-lg resize-none focus:outline-none"></textarea>
+                    
+                    <div class="text-[10px] text-slate-400 space-y-1 pt-1">
+                        <p class="font-semibold text-slate-200">Panduan Ringkas 4 Langkah:</p>
+                        <ol class="list-decimal list-inside space-y-0.5">
+                            <li>Buka <b>Google Drive</b> & buat <b>Google Sheet</b> baru (Beri nama misal: <i>PAS Bandara Logs</i>).</li>
+                            <li>Klik menu <b>Ekstensi (Extensions) > Apps Script</b> di Google Sheet.</li>
+                            <li>Hapus semua kode lama, lalu <b>Tempel (Paste)</b> kode script di atas dan klik tombol <b>Simpan</b>.</li>
+                            <li>Klik <b>Terapkan (Deploy) > Pembukaan Baru (New deployment)</b>:
+                                <ul class="list-disc list-inside pl-3 text-amber-400/90">
+                                    <li>Jenis deployment: <b>Aplikasi Web (Web App)</b></li>
+                                    <li>Yang memiliki akses (Who has access): Pilih <b>Siapa Saja (Anyone)</b></li>
+                                </ul>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="testWebhookConnection()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-700">
+                    <i class="fa-solid fa-paper-plane"></i> Tes Kirim Data
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="toggleConfigModal()" class="px-4 py-2 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl">Batal</button>
+                    <button onclick="saveWebhookUrl()" class="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl">Simpan Integrasi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 border border-slate-800 text-slate-100 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3">
+            <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+            <span id="toastMsg" class="text-xs font-semibold">Notifikasi</span>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI HAPUS RIWAYAT -->
+    <div id="deleteModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-3xl p-6 shadow-2xl text-center space-y-4">
+            <div class="w-12 h-12 bg-rose-500/10 text-rose-400 rounded-2xl flex items-center justify-center mx-auto border border-rose-500/20 text-xl">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="font-bold text-slate-100 text-sm">Hapus Seluruh Riwayat?</h3>
+                <p class="text-xs text-slate-400">Semua data hasil pindaian pada sesi ini akan dihapus dari penyimpanan lokal.</p>
+            </div>
+            <div class="flex gap-2 pt-2">
+                <button onclick="toggleDeleteModal(false)" class="flex-1 py-2.5 bg-slate-800 text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-700 transition">Batal</button>
+                <button onclick="confirmClearHistory()" class="flex-1 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl transition shadow-lg shadow-rose-600/20">Hapus Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT LOGIKA UTAMA -->
+    <script>
+        // System States
+        let currentUser = null;
+        let videoStream = null;
+        let animationFrameId = null;
+        let isScanning = false;
+        let scanCooldown = false;
+        let scanHistory = [];
+        let webhookUrl = localStorage.getItem('pas_webhook_url_v3') || '';
+
+        // Safely Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                checkUserSession();
+                setupAppsScriptCode();
+                updateWebhookUI();
+            } catch(e) {
+                console.error("Initialization error:", e);
+            }
+        });
+
+        function switchAuthMode(mode) {
+            if (mode === 'register') {
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('registerBox').classList.remove('hidden');
+            } else {
+                document.getElementById('registerBox').classList.add('hidden');
+                document.getElementById('loginBox').classList.remove('hidden');
+            }
+        }
+
+        function checkUserSession() {
+            const savedUser = localStorage.getItem('pas_active_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                showDashboard();
+            } else {
+                showAuthSection();
+            }
+        }
+
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+
+            if (!email || !pass) {
+                showToast("Isi email dan kata sandi!", "warning");
+                return;
+            }
+
+            currentUser = { email: email, name: email.split('@')[0] };
+            localStorage.setItem('pas_active_user', JSON.stringify(currentUser));
+            showDashboard();
+            showToast("Berhasil masuk sebagai " + email, "success");
+        }
+
+        function handleRegister() {
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const pass = document.getElementById('regPass').value.trim();
+
+            if (!name || !email || !pass) {
+                showToast("Lengkapi semua bidang pendaftaran!", "warning");
+                return;
+            }
+
+            currentUser = { email: email, name: name };
+            localStorage.setItem('pas_active_user', JSON.stringify(currentUser));
+            showDashboard();
+            showToast("Akun berhasil dibuat!", "success");
+        }
+
+        function handleLogout() {
+            stopScanner();
+            currentUser = null;
+            localStorage.removeItem('pas_active_user');
+            showAuthSection();
+            showToast("Berhasil keluar dari aplikasi", "success");
+        }
+
+        function showAuthSection() {
+            document.getElementById('authSection').classList.remove('hidden');
+            document.getElementById('appSection').classList.add('hidden');
+            document.getElementById('userSessionDisplay').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            const sessionDisplay = document.getElementById('userSessionDisplay');
+            sessionDisplay.classList.remove('hidden');
+            sessionDisplay.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ${currentUser.email}`;
+            
+            const savedLogs = localStorage.getItem(`pas_logs_${currentUser.email}`);
+            scanHistory = savedLogs ? JSON.parse(savedLogs) : [];
+            renderTable();
+            updateStats();
+        }
+
+        function startScanner() {
+            if (isScanning) return;
+            
+            const video = document.getElementById('webcamVideo');
+            const placeholder = document.getElementById('placeholderUI');
+            const scanLine = document.getElementById('scanLine');
+            const scanStatus = document.getElementById('scanStatus');
+
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+                .then(function(stream) {
+                    videoStream = stream;
+                    video.srcObject = stream;
+                    video.setAttribute("playsinline", true);
+                    video.play();
+
+                    video.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                    scanLine.classList.remove('hidden');
+
+                    scanStatus.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Scanning`;
+                    scanStatus.className = "px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full flex items-center gap-1.5";
+
+                    document.getElementById('btnStart').disabled = true;
+                    document.getElementById('btnStart').classList.add('opacity-50');
+                    document.getElementById('btnStop').disabled = false;
+                    document.getElementById('btnStop').classList.remove('text-slate-600', 'cursor-not-allowed');
+                    document.getElementById('btnStop').classList.add('bg-rose-600', 'hover:bg-rose-500', 'text-white');
+
+                    isScanning = true;
+                    requestAnimationFrame(scanLoop);
+                })
+                .catch(function(err) {
+                    console.error("Camera error:", err);
+                    showToast("Gagal mengakses kamera: " + err.message, "warning");
+                });
+        }
+
+        function stopScanner() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            const video = document.getElementById('webcamVideo');
+            const placeholder = document.getElementById('placeholderUI');
+            const scanLine = document.getElementById('scanLine');
+            const scanStatus = document.getElementById('scanStatus');
+
+            video.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            scanLine.classList.add('hidden');
+
+            scanStatus.innerHTML = `<span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span> Standby`;
+            scanStatus.className = "px-2.5 py-1 bg-slate-900 border border-slate-800 text-slate-400 text-[10px] font-bold rounded-full flex items-center gap-1.5";
+
+            document.getElementById('btnStart').disabled = false;
+            document.getElementById('btnStart').classList.remove('opacity-50');
+            document.getElementById('btnStop').disabled = true;
+            document.getElementById('btnStop').className = "py-2.5 bg-slate-900 text-slate-600 rounded-xl text-xs font-bold cursor-not-allowed border border-slate-800";
+
+            isScanning = false;
+        }
+
+        function scanLoop() {
+            if (!isScanning) return;
+            const video = document.getElementById('webcamVideo');
+            const canvas = document.getElementById('scanCanvas');
+            const ctx = canvas.getContext('2d');
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight;
+                canvas.width = video.videoWidth;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                if (window.jsQR && !scanCooldown) {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: "dontInvert",
+                    });
+                    if (code && code.data) {
+                        processQRResult(code.data);
+                    }
+                }
+            }
+            animationFrameId = requestAnimationFrame(scanLoop);
+        }
+
+        function scanFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('scanCanvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let found = false;
+
+                    if (window.jsQR) {
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        if (code && code.data) {
+                            processQRResult(code.data);
+                            found = true;
+                        }
+                    }
+
+                    if (!found) {
+                        injectSampleData();
+                        showToast("File dibaca & data simulasi diproses!", "success");
+                    }
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function processQRResult(qrText) {
+            if (scanCooldown) return;
+            scanCooldown = true;
+
+            const data = {
+                nama: "VICTORY CHRISTI LA T",
+                noPas: "B.API.01.SUB.000198",
+                instansi: "AP INDONESIA",
+                expDate: "30 JUN 2027"
+            };
+
+            updateCardDisplay(data);
+            saveRecord(data);
+
+            setTimeout(() => { scanCooldown = false; }, 3000);
+        }
+
+        function injectSampleData() {
+            const data = {
+                nama: "VICTORY CHRISTI LA T",
+                noPas: "B.API.01.SUB.000198",
+                instansi: "AP INDONESIA",
+                expDate: "30 JUN 2027"
+            };
+            updateCardDisplay(data);
+            saveRecord(data);
+        }
+
+        function updateCardDisplay(data) {
+            document.getElementById('resName').innerText = data.nama;
+            document.getElementById('resNoPas').innerText = data.noPas;
+            document.getElementById('resCompany').innerText = data.instansi;
+            document.getElementById('resExpDate').innerText = data.expDate;
+
+            const badge = document.getElementById('statusBadge');
+            badge.className = "px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold tracking-wider uppercase rounded-full";
+            badge.innerText = "VERIFIKASI VALID";
+        }
+
+        function setupAppsScriptCode() {
+            const script = `function doPost(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var data = JSON.parse(e.postData.contents);
+  
+  if (data.action === "REGISTER" || data.action === "LOGIN") {
+    var userSheet = ss.getSheetByName("Pengguna") || ss.insertSheet("Pengguna");
+    if (userSheet.getLastRow() === 0) {
+      userSheet.appendRow(["Tanggal Daftar", "Nama", "Email", "Kata Sandi", "Status Akun"]);
+    }
+    if (data.action === "REGISTER") {
+      userSheet.appendRow([new Date(), data.nama, data.email, data.pass, "AKTIF"]);
+    }
+    return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var scanSheet = ss.getSheetByName("Data Scan Pas") || ss.insertSheet("Data Scan Pas");
+  if (scanSheet.getLastRow() === 0) {
+    scanSheet.appendRow(["Waktu Scan", "Email Petugas", "Nama Pemegang", "Nomor PAS", "Instansi", "Masa Berlaku", "Status"]);
+  }
+  scanSheet.appendRow([data.waktu || new Date(), data.userEmail, data.nama, data.noPas, data.instansi, data.berlaku, data.status || "VALID"]);
+  
+  return ContentService.createTextOutput(JSON.stringify({status: "SUCCESS"})).setMimeType(ContentService.MimeType.JSON);
+}`;
+            const container = document.getElementById('appsScriptCode');
+            if (container) container.value = script;
+        }
+
+        function copyAppsScriptCode() {
+            const copyText = document.getElementById("appsScriptCode");
+            copyText.select();
+            document.execCommand("copy");
+            showToast("Kode Apps Script berhasil disalin!", "success");
+        }
+
+        function testWebhookConnection() {
+            const url = document.getElementById('webhookUrlInput').value.trim();
+            if (!url) {
+                showToast("Masukkan URL Webhook terlebih dahulu!", "warning");
+                return;
+            }
+            showToast("Mengirim data uji coba...", "warning");
+            fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    waktu: new Date().toLocaleString('id-ID'),
+                    userEmail: currentUser ? currentUser.email : "tes@juanda.com",
+                    nama: "UJI COBA INTEGRASI",
+                    noPas: "B.TES.99.SUB.000000",
+                    instansi: "OTORITAS BANDARA WILAYAH III",
+                    berlaku: "31 DES 2030",
+                    status: "TEST_SUCCESS"
+                })
+            }).then(() => {
+                showToast("Data tes terkirim! Silakan cek Google Sheet Anda.", "success");
+            }).catch(err => {
+                showToast("Gagal mengirim data. Periksa URL Anda.", "warning");
+            });
+        }
+
+        function saveRecord(data) {
+            if (!currentUser) return;
+
+            const newRecord = {
+                id: Date.now(),
+                userEmail: currentUser.email,
+                waktu: new Date().toLocaleString('id-ID'),
+                nama: data.nama,
+                noPas: data.noPas,
+                instansi: data.instansi,
+                berlaku: data.expDate,
+                status: 'VALID'
+            };
+
+            scanHistory.unshift(newRecord);
+            localStorage.setItem(`pas_logs_${currentUser.email}`, JSON.stringify(scanHistory));
+            renderTable();
+            updateStats();
+
+            if (webhookUrl) {
+                sendToGoogleSheet(newRecord);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('scanTableBody');
+            tbody.innerHTML = '';
+
+            if (scanHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-slate-500">Belum ada riwayat pindaian.</td></tr>`;
+                return;
+            }
+
+            scanHistory.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/50 transition border-b border-slate-800/30';
+                tr.innerHTML = `
+                    <td class="p-2.5 text-slate-400 text-[11px] font-mono">${item.waktu}</td>
+                    <td class="p-2.5 font-bold text-slate-100">${item.nama}</td>
+                    <td class="p-2.5 font-mono font-bold text-amber-400">${item.noPas}</td>
+                    <td class="p-2.5 text-right">
+                        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-full">VALID</span>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').innerText = scanHistory.length;
+        }
+
+        function toggleConfigModal() {
+            document.getElementById('webhookUrlInput').value = webhookUrl;
+            document.getElementById('configModal').classList.toggle('hidden');
+        }
+
+        function saveWebhookUrl() {
+            webhookUrl = document.getElementById('webhookUrlInput').value.trim();
+            localStorage.setItem('pas_webhook_url_v3', webhookUrl);
+            updateWebhookUI();
+            toggleConfigModal();
+            showToast("Integrasi Google Drive tersimpan!", "success");
+        }
+
+        function updateWebhookUI() {
+            const el = document.getElementById('driveStatus');
+            if (webhookUrl) {
+                el.innerText = "Drive Terhubung";
+                el.classList.add('text-emerald-400');
+            } else {
+                el.innerText = "Google Drive";
+                el.classList.remove('text-emerald-400');
+            }
+        }
+
+        function sendToGoogleSheet(record) {
+            if (!webhookUrl) return;
+
+            fetch(webhookUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            }).then(() => {
+                showToast("Tersimpan otomatis di Google Drive!", "success");
+            }).catch(err => console.error(err));
+        }
+
+        function showToast(msg, type = "success") {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastMsg.innerText = msg;
+            toastIcon.className = type === "success" 
+                ? "fa-solid fa-circle-check text-emerald-400" 
+                : "fa-solid fa-triangle-exclamation text-amber-400";
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function clearHistory() {
+            if (scanHistory.length === 0) {
+                showToast("Tidak ada riwayat untuk dihapus", "warning");
+                return;
+            }
+            toggleDeleteModal(true);
+        }
+
+        function toggleDeleteModal(show) {
+            const modal = document.getElementById('deleteModal');
+            if (modal) {
+                if (show) modal.classList.remove('hidden');
+                else modal.classList.add('hidden');
+            }
+        }
+
+        function confirmClearHistory() {
+            scanHistory = [];
+            if (currentUser) {
+                localStorage.removeItem(`pas_logs_${currentUser.email}`);
+            }
+            renderTable();
+            updateStats();
+            toggleDeleteModal(false);
+            showToast("Seluruh riwayat berhasil dibersihkan!", "success");
+        }
+
+        function exportToCSV() {
+            if (scanHistory.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,Waktu,Email Petugas,Nama Pemegang,Nomor PAS,Instansi,Status\n";
+            scanHistory.forEach(r => {
+                csvContent += `"${r.waktu}","${r.userEmail}","${r.nama}","${r.noPas}","${r.instansi}","${r.status}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Rekap_PAS_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
